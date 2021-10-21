@@ -25,6 +25,7 @@
   */ 
 
 #include "mbed.h"
+#include "mbed_events.h"
 #include <cstdio>
 
 //The following functions are made for detecting inputs from different columns
@@ -38,6 +39,8 @@ void LED_Off(void);
 
 int row = 0;
 int timeRemaining = 0;
+EventQueue queue(32*EVENTS_EVENT_SIZE);
+
 
 InterruptIn Column1(PB_8);
 InterruptIn Column2(PB_9);
@@ -45,9 +48,10 @@ InterruptIn Column3(PB_10);
 InterruptIn Column4(PB_11);
 
 int main() {
-    RCC->AHB2ENR |= 0xA;
-    GPIOC->MODER |= 0x4000;
-    GPIOC->MODER &= ~(0x8000);
+    RCC->AHB2ENR |= 0x6;
+    //PC_8 to 01 for output mode
+    GPIOC->MODER&=~(0x20000);
+    GPIOC->MODER|=0x10000;
 
     //Interrupts for the keypad
     Column1.rise(&isr_Col1);
@@ -68,6 +72,12 @@ int main() {
         else{
             timeRemaining = 0; //This is so that the time isn't in the negative
         }
+        if (row == 1) {
+            //GPIOC->ODR |= 0x100;
+        }
+        else {
+            GPIOC->ODR&=~(0x100);
+        }
         row += 1;
         row %= 4; //Rows go from range 0-3
     }
@@ -75,9 +85,10 @@ int main() {
 }
 
 void isr_Col1(void) {
-    GPIOC->ODR |= 0x80;
+    GPIOC->ODR |= 0x100; //Turn on an LED
+    printf("LED ON\n");
     if (row==0){
-        printf("found A\n");
+        queue.callback(printf("found A\n"));
     } 
     else if(row ==1){
         printf("found B\n");
@@ -139,5 +150,6 @@ void isr_Col4(void) {
 }
 
 void LED_Off(void){
-    GPIOC->ODR&=~(0x80);
+    GPIOC->ODR&=~(0x100);
+    printf("LED OFF\n");
 }
