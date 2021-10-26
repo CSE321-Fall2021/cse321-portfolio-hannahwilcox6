@@ -35,36 +35,52 @@ void isr_Col1(void);
 void isr_Col2(void);
 void isr_Col3(void);
 void isr_Col4(void);
-void LED_Off(void);
 
 int row = 0;
 int timeRemaining = 0;
 EventQueue queue(32*EVENTS_EVENT_SIZE);
 
+//Input Pins
+//TODO: ENABLE AS INPUTS
+InterruptIn Column1(PB_8, PullDown);
+InterruptIn Column2(PB_9, PullDown);
+InterruptIn Column3(PB_10, PullDown);
+InterruptIn Column4(PB_11, PullDown);
 
-InterruptIn Column1(PB_8);
-InterruptIn Column2(PB_9);
-InterruptIn Column3(PB_10);
-InterruptIn Column4(PB_11);
+//Output Pins
+//PE10
+//PE12
+//PE14
+//PE15
 
 int main() {
-    RCC->AHB2ENR |= 0x6;
-    //PC_8 to 01 for output mode
-    GPIOC->MODER&=~(0x20000);
-    GPIOC->MODER|=0x10000;
+    // 0001 0010
+    // Enable ports  E, B
+    RCC->AHB2ENR |= 0x12;
+    //PE_8 to 01 for output mode
+    // ToDo Add this to port E and B
+    GPIOE->MODER&=~(0x20000);
+    GPIOE->MODER|=0x10000;
+
+    //Enable pins PE10,12,14,15 as outputs
+    GPIOE->MODER &= (0x511FFFFF);
+    GPIOE->MODER |= (0x51100000);
+
+    //Enable pin PB8,9,10,11 as inputs
+    //1010 1010  0000 0000 0000 0000
+    GPIOB->MODER &= (0xAAFFFF);
+    GPIOB->MODER |= (0xAA0000);
 
     //Interrupts for the keypad
+    
+    //On rise, we'll be reading an input from the keypad and having to determine which button was pressed
+    //We also need to turn on the LED!
     Column1.rise(&isr_Col1);
     Column2.rise(&isr_Col2);
     Column3.rise(&isr_Col3);
     Column4.rise(&isr_Col4);
-
-    Column1.fall(&LED_Off);
-    Column2.fall(&LED_Off);
-    Column3.fall(&LED_Off);
-    Column4.fall(&LED_Off);
     
-    //This loop continously updates the LCD display remaining time
+    //This loop continously updates the LCD display remaining time, and changes which row is being powered
     while (1) {
         if(timeRemaining > 0 ){
             timeRemaining -= 1000; //Remove a second every loop iteration
@@ -72,84 +88,90 @@ int main() {
         else{
             timeRemaining = 0; //This is so that the time isn't in the negative
         }
-        if (row == 1) {
-            //GPIOC->ODR |= 0x100;
-        }
-        else {
-            GPIOC->ODR&=~(0x100);
-        }
+        //Row 1 Powered
+        GPIOE->ODR |= 0x400;
+        GPIOE->ODR &= 0xFFFFFBFF;
+        //Row 2 Powered
+        GPIOE->ODR |= 0x1000;
         row += 1;
+        GPIOE->ODR &= 0xFFFFEFFF;
+        //Row 3 Powered
+        GPIOE->ODR |= 0x4000;
+        row += 1;
+        GPIOE->ODR &= 0xFFFFBFFF;
+        //Row 4 Powered
+        GPIOE->ODR |= 0x8000;
+        row += 1;
+        GPIOE->ODR &= 0xFFFF7FFF;
         row %= 4; //Rows go from range 0-3
     }
-    return 0; 
+    return 0;
 }
 
 void isr_Col1(void) {
-    GPIOC->ODR |= 0x100; //Turn on an LED
-    printf("LED ON\n");
+    GPIOE->ODR |= 0x100; //Turn on an LED
     if (row==0){
-        queue.callback(printf("found A\n"));
+        queue.call(printf("found A\n"));
     } 
     else if(row ==1){
-        printf("found B\n");
+        queue.call(printf("found B\n"));
     }
     else if(row ==2){
-        printf("found C\n");
+        queue.call(printf("found C\n"));
     }
     else{
-        printf("found D\n");
+        queue.call(printf("found D\n"));
     }
+    GPIOE->ODR&=~(0x100);
 }
 
 void isr_Col2(void) {
-    GPIOC->ODR |= 0x80; 
+    GPIOE->ODR |= 0x100; 
     if (row==0){
-        printf("found 3\n");
+        queue.call(printf("found 3\n"));
     } 
     else if(row ==1){
-        printf("found 6\n");
+        queue.call(printf("found 6\n"));
     }
     else if(row ==2){
-        printf("found 9\n");
+        queue.call(printf("found 9\n"));
     }
     else{
-        printf("found #\n");
+        queue.call(printf("found #\n"));
     }
+    GPIOE->ODR&=~(0x100);
 }
 
 void isr_Col3(void) { 
-    GPIOC->ODR |= 0x80;
+    GPIOE->ODR |= 0x100;
     if (row==0){
-        printf("found 2\n");
+        queue.call(printf("found 2\n"));
     } 
     else if(row ==1){
-        printf("found 5\n");
+        queue.call(printf("found 5\n"));
     }
     else if(row ==2){
-        printf("found 8\n");
+        queue.call(printf("found 8\n"));
     }
     else{
-        printf("found 0\n");
+        queue.call(printf("found 0\n"));
     } 
+    GPIOE->ODR&=~(0x100);
 }
 
 void isr_Col4(void) {
-    GPIOC->ODR |= 0x80; 
+    GPIOE->ODR |= 0x100; 
     if (row==0){
-        printf("found 1\n");
+        queue.call(printf("found 1\n"));
     } 
     else if(row ==1){
-        printf("found 4\n");
+        queue.call(printf("found 4\n"));
     }
     else if(row ==2){
-        printf("found 7\n");
+        queue.call(printf("found 7\n"));
     }
     else{
-        printf("found *\n");
+        queue.call(printf("found *\n"));
     }
-}
-
-void LED_Off(void){
-    GPIOC->ODR&=~(0x100);
-    printf("LED OFF\n");
+    GPIOE->ODR&=~(0x100);
 }
