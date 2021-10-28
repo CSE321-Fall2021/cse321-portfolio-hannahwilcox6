@@ -25,7 +25,9 @@
   */ 
 
 #include "mbed.h"
+#include "lcd1602.h"
 #include <cstdio>
+#include <string>
 
 //The following functions are made for detecting inputs from different columns
 //I structured them columns 1-4, with column 1 starting on the right side of the keypad
@@ -34,17 +36,21 @@ void isr_Col1(void);
 void isr_Col2(void);
 void isr_Col3(void);
 void isr_Col4(void);
+void update(void);
 
 int row = 0;
 int timeRemaining = 0;
+bool flag = false;
+//Ticker t1;
 EventQueue queue(32*EVENTS_EVENT_SIZE);
+CSE321_LCD display(16, 2, LCD_5x10DOTS, PB_9, PB_8);
 
 //Input Pins
 //TODO: ENABLE AS INPUTS
-InterruptIn Column1(PB_8, PullDown);
-InterruptIn Column2(PB_9, PullDown);
-InterruptIn Column3(PB_10, PullDown);
-InterruptIn Column4(PB_11, PullDown);
+InterruptIn Column1(PE_2, PullDown); 
+InterruptIn Column2(PE_4, PullDown); 
+InterruptIn Column3(PE_5, PullDown);
+InterruptIn Column4(PE_6, PullDown);
 
 //Output Pins
 //PE10
@@ -57,7 +63,6 @@ int main() {
     // Enable ports  E, B
     RCC->AHB2ENR |= 0x12;
     //PE_8 to 01 for output mode
-    // ToDo Add this to port E and B
     GPIOE->MODER&=~(0x20000);
     GPIOE->MODER|=0x10000;
 
@@ -66,9 +71,9 @@ int main() {
     GPIOE->MODER &= (0x511FFFFF);
     GPIOE->MODER |= (0x51100000);
 
-    //Enable pin PB8,9,10,11 as inputs
-    //---- ---- 0000 0000  ---- ---- ---- ----
-    GPIOB->MODER &= (0xFF00FFFF);
+    //Enable pin PE 2,4,5,6 as inputs
+    //---- ---- ---- ----  --00 0000 --00 ----
+    GPIOB->MODER &= (0xFFFFC0CF);
 
     //Interrupts for the keypad
     
@@ -78,15 +83,17 @@ int main() {
     Column2.fall(&isr_Col2);
     Column3.fall(&isr_Col3);
     Column4.fall(&isr_Col4);
+
+    display.begin();
+    display.setCursor(0,0);
+    display.print("Time Remaining:");
+    display.setCursor(0,1);
+    display.print("0 Min 99 Sec");
+    display.setCursor(0,1);
     
     //This loop continously updates the LCD display remaining time, and changes which row is being powered
     while (1) {
-        if(timeRemaining > 0 ){
-            timeRemaining -= 1000; //Remove a second every loop iteration
-        }
-        else{
-            timeRemaining = 0; //This is so that the time isn't in the negative
-        }
+        //t1.attach(queue.event(update),1);
         //Row 1 Powered
         GPIOE->ODR |= 0x400;
         row %= 4; //Rows go from range 0-3
@@ -125,6 +132,9 @@ void isr_Col1(void) {
     }
     else{
         queue.call(printf,"found D\n");
+        display.clear();
+        display.setCursor(0,0);
+        display.print("Enter Time:");
     }
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
@@ -181,4 +191,12 @@ void isr_Col4(void) {
         queue.call(printf,"found *\n");
     }
     GPIOE->ODR&=~(0x100); //Turn off an LED
+}
+
+void update(void){
+    display.clear();
+    display.setCursor(0,0);
+    display.print("Time Remaining:");
+    display.setCursor(0,1);
+    display.print("0 Min 99 Sec");
 }
