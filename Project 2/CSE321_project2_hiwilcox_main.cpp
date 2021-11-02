@@ -36,12 +36,11 @@ void isr_Col1(void);
 void isr_Col2(void);
 void isr_Col3(void);
 void isr_Col4(void);
-void update(void);
 
 int row = 0;
+std::string timeRemainingStr = "";
 int timeRemaining = 0;
-bool flag = false;
-//Ticker t1;
+bool flagD, flagRun, flagInput = false;
 EventQueue queue(32*EVENTS_EVENT_SIZE);
 CSE321_LCD display(16, 2, LCD_5x10DOTS, PB_9, PB_8);
 
@@ -88,32 +87,59 @@ int main() {
     display.setCursor(0,0);
     display.print("Time Remaining:");
     display.setCursor(0,1);
-    display.print("0 Min 99 Sec");
-    display.setCursor(0,1);
+    display.print("0 Min 0 Sec");
     
     //This loop continously updates the LCD display remaining time, and changes which row is being powered
     while (1) {
-        //t1.attach(queue.event(update),1);
         //Row 1 Powered
-        GPIOE->ODR |= 0x400;
-        row %= 4; //Rows go from range 0-3
-        thread_sleep_for(80);
-        GPIOE->ODR &= 0xFFFFFBFF;
-        //Row 2 Powered
-        GPIOE->ODR |= 0x1000;
+        row = 0; //Rows go from range 0-3
+        if(row == 0){
+            GPIOE->ODR |= 0x400;
+            thread_sleep_for(80);
+            GPIOE->ODR &= 0xFFFFFBFF;
+            thread_sleep_for(80);
+        }
         row += 1;
-        thread_sleep_for(80);
-        GPIOE->ODR &= 0xFFFFEFFF;
-        //Row 3 Powered
-        GPIOE->ODR |= 0x4000;
+        if(row == 1){
+            GPIOE->ODR |= 0x1000;
+            thread_sleep_for(80);
+            GPIOE->ODR &= 0xFFFFEFFF;
+            thread_sleep_for(80);
+        }
         row += 1;
-        thread_sleep_for(80);
-        GPIOE->ODR &= 0xFFFFBFFF;
-        //Row 4 Powered
-        GPIOE->ODR |= 0x8000;
+        if(row == 2){
+            GPIOE->ODR |= 0x4000;
+            thread_sleep_for(80);
+            GPIOE->ODR &= 0xFFFFBFFF;
+            thread_sleep_for(80);
+        }
         row += 1;
-        thread_sleep_for(80);
-        GPIOE->ODR &= 0xFFFF7FFF;
+        if(row == 3){
+            GPIOE->ODR |= 0x8000;
+            thread_sleep_for(80);
+            GPIOE->ODR &= 0xFFFF7FFF;
+        }
+
+        if(flagD == true){
+            display.clear();
+            display.setCursor(0,0);
+            display.print("Enter Time:");
+            flagD = false;
+            flagInput = true;
+        }
+        else if(flagRun == true and flagInput == false){
+            //timeRemaining += stoi(timeRemainingStr);
+            int seconds = timeRemaining / 1000;
+            int min = floor(seconds / 60);
+            int sec = seconds % 60;
+            // std::string text = to_string(min) + " min " + to_string(sec) + " sec";
+            // display.clear();
+            // display.setCursor(0,0);
+            // display.print("Time Remaining:");
+            // display.setCursor(0,1);
+            // flagRun = false;
+            // display.print(text.c_str());
+        }
     }
     return 0;
 }
@@ -123,18 +149,18 @@ void isr_Col1(void) {
     printf("test Col 1\n");
     if (row==0){
         queue.call(printf,"found A\n");
+        flagRun = true;
     } 
     else if(row ==1){
         queue.call(printf,"found B\n");
+        flagRun = false;
     }
     else if(row ==2){
         queue.call(printf,"found C\n");
     }
     else{
         queue.call(printf,"found D\n");
-        display.clear();
-        display.setCursor(0,0);
-        display.print("Enter Time:");
+        flagD = true;
     }
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
@@ -144,15 +170,25 @@ void isr_Col2(void) {
     printf("test Col 2\n");
     if (row==0){
         queue.call(printf,"found 3\n");
+        if(flagInput == true){
+            timeRemainingStr += "3";
+        }
     } 
     else if(row ==1){
         queue.call(printf,"found 6\n");
+        if(flagInput == true){
+            timeRemainingStr += "6";
+        }
     }
     else if(row ==2){
         queue.call(printf,"found 9\n");
+        if(flagInput == true){
+            timeRemainingStr += "9";
+        }
     }
     else{
         queue.call(printf,"found #\n");
+        flagInput = false;
     }
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
@@ -162,15 +198,27 @@ void isr_Col3(void) {
     printf("test Col 3\n");
     if (row==0){
         queue.call(printf,"found 2\n");
+        if(flagInput == true){
+            timeRemainingStr += "2";
+        }
     } 
     else if(row ==1){
         queue.call(printf,"found 5\n");
+        if(flagInput == true){
+            timeRemainingStr += "5";
+        }
     }
     else if(row ==2){
         queue.call(printf,"found 8\n");
+        if(flagInput == true){
+            timeRemainingStr += "8";
+        }
     }
     else{
         queue.call(printf,"found 0\n");
+        if(flagInput == true){
+            timeRemainingStr += "0";
+        }
     } 
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
@@ -180,23 +228,24 @@ void isr_Col4(void) {
     printf("test Col 4\n");
     if (row==0){
         queue.call(printf,"found 1\n");
+        if(flagInput == true){
+            timeRemainingStr += "1";
+        }
     } 
     else if(row ==1){
         queue.call(printf,"found 4\n");
+        if(flagInput == true){
+            timeRemainingStr += "4";
+        }
     }
     else if(row ==2){
         queue.call(printf,"found 7\n");
+        if(flagInput == true){
+            timeRemainingStr += "7";
+        }
     }
     else{
         queue.call(printf,"found *\n");
     }
     GPIOE->ODR&=~(0x100); //Turn off an LED
-}
-
-void update(void){
-    display.clear();
-    display.setCursor(0,0);
-    display.print("Time Remaining:");
-    display.setCursor(0,1);
-    display.print("0 Min 99 Sec");
 }
