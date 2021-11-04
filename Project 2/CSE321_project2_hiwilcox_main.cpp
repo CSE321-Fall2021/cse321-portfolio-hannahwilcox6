@@ -36,11 +36,13 @@ void isr_Col1(void);
 void isr_Col2(void);
 void isr_Col3(void);
 void isr_Col4(void);
+void updateTime(void);
 
-int row = 0;
-std::string timeRemainingStr = "";
-int timeRemaining = 0;
-bool flagD, flagRun, flagInput = false;
+int row, inputIndex, minutes, seconds = 0;
+const char* s = "";
+Ticker t1;
+char* timeRemainingStr = (char*)malloc(strlen(s)+1);
+bool flagD, flagRun, flagInput, flagSet = false;
 EventQueue queue(32*EVENTS_EVENT_SIZE);
 CSE321_LCD display(16, 2, LCD_5x10DOTS, PB_9, PB_8);
 
@@ -88,6 +90,8 @@ int main() {
     display.print("Time Remaining:");
     display.setCursor(0,1);
     display.print("0 Min 0 Sec");
+
+    t1.attach(queue.event(updateTime), 1s);
     
     //This loop continously updates the LCD display remaining time, and changes which row is being powered
     while (1) {
@@ -95,28 +99,28 @@ int main() {
         row = 0; //Rows go from range 0-3
         if(row == 0){
             GPIOE->ODR |= 0x400;
-            thread_sleep_for(80);
+            thread_sleep_for(50);
             GPIOE->ODR &= 0xFFFFFBFF;
-            thread_sleep_for(80);
+            thread_sleep_for(50);
         }
         row += 1;
         if(row == 1){
             GPIOE->ODR |= 0x1000;
-            thread_sleep_for(80);
+            thread_sleep_for(50);
             GPIOE->ODR &= 0xFFFFEFFF;
-            thread_sleep_for(80);
+            thread_sleep_for(50);
         }
         row += 1;
         if(row == 2){
             GPIOE->ODR |= 0x4000;
-            thread_sleep_for(80);
+            thread_sleep_for(50);
             GPIOE->ODR &= 0xFFFFBFFF;
-            thread_sleep_for(80);
+            thread_sleep_for(50);
         }
         row += 1;
         if(row == 3){
             GPIOE->ODR |= 0x8000;
-            thread_sleep_for(80);
+            thread_sleep_for(50);
             GPIOE->ODR &= 0xFFFF7FFF;
         }
 
@@ -127,18 +131,69 @@ int main() {
             flagD = false;
             flagInput = true;
         }
-        else if(flagRun == true and flagInput == false){
-            //timeRemaining += stoi(timeRemainingStr);
-            int seconds = timeRemaining / 1000;
-            int min = floor(seconds / 60);
-            int sec = seconds % 60;
-            // std::string text = to_string(min) + " min " + to_string(sec) + " sec";
-            // display.clear();
-            // display.setCursor(0,0);
-            // display.print("Time Remaining:");
-            // display.setCursor(0,1);
-            // flagRun = false;
-            // display.print(text.c_str());
+        else if(flagRun == true and flagInput == false and flagSet == true){
+            int sec1 = (timeRemainingStr[2]);
+            int sec2 = (timeRemainingStr[3]);
+            int min = (timeRemainingStr[0]);
+            minutes = min - '0';
+            seconds = ((sec1 - '0')*10) + (sec2 - '0');
+            const char* c = " min  sec";
+            char* text = (char*)malloc(strlen(c)+1);
+            text[0] = min;
+            text[1] = ' ';
+            text[2] = 'm';
+            text[3] = 'i';
+            text[4] = 'n';
+            text[5] = ' ';
+            text[6] = sec1;
+            text[7] = sec2;
+            text[8] = ' ';
+            text[9] = 's';
+            text[10] = 'e';
+            text[11] = 'c';
+            text[12] = '\0';
+            display.clear();
+            display.setCursor(0,0);
+            display.print("Time Remaining:");
+            display.setCursor(0,1);
+            flagSet = false;
+            inputIndex = 0;
+            display.print(text);
+        }
+        else if(flagRun == true and flagInput == false and flagSet == false){
+            seconds -= 1;
+            if(seconds <= 0 and minutes <= 0){
+                printf("CHECK");
+                flagRun = false;
+            }
+            if(seconds < 0 and minutes > 1){
+                minutes -= 1;
+                seconds = 60;
+            }
+            int sec1 = int(seconds / 10);
+            int sec2 = seconds % 10;
+
+            const char* c = " min  sec";
+            char* text = (char*)malloc(strlen(c)+1);
+            text[0] = minutes + '0';
+            text[1] = ' ';
+            text[2] = 'm';
+            text[3] = 'i';
+            text[4] = 'n';
+            text[5] = ' ';
+            text[6] = sec1 + '0';
+            text[7] = sec2 + '0';
+            text[8] = ' ';
+            text[9] = 's';
+            text[10] = 'e';
+            text[11] = 'c';
+            text[12] = '\0';
+            display.clear();
+            display.setCursor(0,0);
+            display.print("Time Remaining:");
+            display.setCursor(0,1);
+            inputIndex = 0;
+            display.print(text);
         }
     }
     return 0;
@@ -168,84 +223,130 @@ void isr_Col1(void) {
 void isr_Col2(void) {
     GPIOE->ODR |= 0x100; //Turn on an LED
     printf("test Col 2\n");
+    char num = ' ';
     if (row==0){
-        queue.call(printf,"found 3\n");
-        if(flagInput == true){
-            timeRemainingStr += "3";
-        }
+        num = '3';
     } 
     else if(row ==1){
-        queue.call(printf,"found 6\n");
-        if(flagInput == true){
-            timeRemainingStr += "6";
-        }
+        num = '6';
     }
     else if(row ==2){
-        queue.call(printf,"found 9\n");
-        if(flagInput == true){
-            timeRemainingStr += "9";
-        }
+        num = '9';
     }
     else{
         queue.call(printf,"found #\n");
-        flagInput = false;
     }
+    if(flagInput == true){
+            timeRemainingStr[inputIndex] = num;
+            if(inputIndex == 0){
+                timeRemainingStr[inputIndex + 1] = ':';
+                inputIndex += 1;
+            }
+            inputIndex += 1;
+            if(inputIndex == 4){
+                flagInput = false;
+                flagSet = true;
+            }
+        }
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
 
 void isr_Col3(void) { 
     GPIOE->ODR |= 0x100; //Turn on an LED
     printf("test Col 3\n");
+    char num = ' ';
     if (row==0){
-        queue.call(printf,"found 2\n");
-        if(flagInput == true){
-            timeRemainingStr += "2";
-        }
+        num = '2';
     } 
     else if(row ==1){
-        queue.call(printf,"found 5\n");
-        if(flagInput == true){
-            timeRemainingStr += "5";
-        }
+        num = '5';
     }
     else if(row ==2){
-        queue.call(printf,"found 8\n");
-        if(flagInput == true){
-            timeRemainingStr += "8";
-        }
+        num = '8';
     }
     else{
-        queue.call(printf,"found 0\n");
-        if(flagInput == true){
-            timeRemainingStr += "0";
-        }
+        num = '0';
     } 
+    if(flagInput == true){
+            timeRemainingStr[inputIndex] = num;
+            if(inputIndex == 0){
+                timeRemainingStr[inputIndex + 1] = ':';
+                inputIndex += 1;
+            }
+            inputIndex += 1;
+            if(inputIndex == 4){
+                flagInput = false;
+                flagSet = true;
+            }
+        }
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
 
 void isr_Col4(void) {
     GPIOE->ODR |= 0x100; //Turn on an LED
     printf("test Col 4\n");
+    char num = ' ';
     if (row==0){
-        queue.call(printf,"found 1\n");
-        if(flagInput == true){
-            timeRemainingStr += "1";
-        }
+        num = '1';
     } 
     else if(row ==1){
-        queue.call(printf,"found 4\n");
-        if(flagInput == true){
-            timeRemainingStr += "4";
-        }
+        num = '4';
     }
     else if(row ==2){
-        queue.call(printf,"found 7\n");
-        if(flagInput == true){
-            timeRemainingStr += "7";
-        }
+        num = '7';
     }
     else{
         queue.call(printf,"found *\n");
     }
+    if(flagInput == true){
+            timeRemainingStr[inputIndex] = num;
+            if(inputIndex == 0){
+                timeRemainingStr[inputIndex + 1] = ':';
+                inputIndex += 1;
+            }
+            inputIndex += 1;
+            if(inputIndex == 4){
+                flagInput = false;
+                flagSet = true;
+            }
+        }
     GPIOE->ODR&=~(0x100); //Turn off an LED
+}
+
+void updateTime(void){
+    if(flagRun == true and flagInput == false and flagSet == false){
+            seconds -= 1;
+            if(seconds <= 0 and minutes <= 0){
+                printf("CHECK");
+                flagRun = false;
+            }
+            if(seconds < 0 and minutes > 1){
+                minutes -= 1;
+                seconds = 60;
+            }
+            int sec1 = int(seconds / 10);
+            int sec2 = seconds % 10;
+
+            const char* c = " min  sec";
+            char* text = (char*)malloc(strlen(c)+1);
+            text[0] = minutes + '0';
+            text[1] = ' ';
+            text[2] = 'm';
+            text[3] = 'i';
+            text[4] = 'n';
+            text[5] = ' ';
+            text[6] = sec1 + '0';
+            text[7] = sec2 + '0';
+            text[8] = ' ';
+            text[9] = 's';
+            text[10] = 'e';
+            text[11] = 'c';
+            text[12] = '\0';
+            display.clear();
+            display.setCursor(0,0);
+            display.print("Time Remaining:");
+            display.setCursor(0,1);
+            inputIndex = 0;
+            display.print(text);
+        }
 }
