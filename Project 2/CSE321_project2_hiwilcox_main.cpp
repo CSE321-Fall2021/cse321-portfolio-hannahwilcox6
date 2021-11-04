@@ -38,7 +38,7 @@ void isr_Col3(void);
 void isr_Col4(void);
 void updateTime(void);
 
-int row, inputIndex, minutes, seconds = 0;
+int row, inputIndex, minutes, seconds, sec1, sec2 = 0;
 const char* s = "";
 Ticker t1;
 char* timeRemainingStr = (char*)malloc(strlen(s)+1);
@@ -91,7 +91,7 @@ int main() {
     display.setCursor(0,1);
     display.print("0 Min 0 Sec");
 
-    t1.attach(queue.event(updateTime), 1s);
+    t1.attach(&updateTime, 1s);
     
     //This loop continously updates the LCD display remaining time, and changes which row is being powered
     while (1) {
@@ -132,11 +132,11 @@ int main() {
             flagInput = true;
         }
         else if(flagRun == true and flagInput == false and flagSet == true){
-            int sec1 = (timeRemainingStr[2]);
-            int sec2 = (timeRemainingStr[3]);
+            sec1 = (timeRemainingStr[2])-'0';
+            sec2 = (timeRemainingStr[3])-'0';
             int min = (timeRemainingStr[0]);
             minutes = min - '0';
-            seconds = ((sec1 - '0')*10) + (sec2 - '0');
+            seconds = ((sec1)*10) + (sec2);
             const char* c = " min  sec";
             char* text = (char*)malloc(strlen(c)+1);
             text[0] = min;
@@ -145,8 +145,8 @@ int main() {
             text[3] = 'i';
             text[4] = 'n';
             text[5] = ' ';
-            text[6] = sec1;
-            text[7] = sec2;
+            text[6] = sec1+'0';
+            text[7] = sec2+'0';
             text[8] = ' ';
             text[9] = 's';
             text[10] = 'e';
@@ -161,18 +161,6 @@ int main() {
             display.print(text);
         }
         else if(flagRun == true and flagInput == false and flagSet == false){
-            seconds -= 1;
-            if(seconds <= 0 and minutes <= 0){
-                printf("CHECK");
-                flagRun = false;
-            }
-            if(seconds < 0 and minutes > 1){
-                minutes -= 1;
-                seconds = 60;
-            }
-            int sec1 = int(seconds / 10);
-            int sec2 = seconds % 10;
-
             const char* c = " min  sec";
             char* text = (char*)malloc(strlen(c)+1);
             text[0] = minutes + '0';
@@ -317,36 +305,15 @@ void updateTime(void){
     if(flagRun == true and flagInput == false and flagSet == false){
             seconds -= 1;
             if(seconds <= 0 and minutes <= 0){
-                printf("CHECK");
-                flagRun = false;
+                seconds = 0;
+                minutes = 0;
             }
-            if(seconds < 0 and minutes > 1){
+            printf("%d %d\n", minutes, seconds);
+            if(seconds < 0 and minutes >= 1){
                 minutes -= 1;
                 seconds = 60;
             }
-            int sec1 = int(seconds / 10);
-            int sec2 = seconds % 10;
-
-            const char* c = " min  sec";
-            char* text = (char*)malloc(strlen(c)+1);
-            text[0] = minutes + '0';
-            text[1] = ' ';
-            text[2] = 'm';
-            text[3] = 'i';
-            text[4] = 'n';
-            text[5] = ' ';
-            text[6] = sec1 + '0';
-            text[7] = sec2 + '0';
-            text[8] = ' ';
-            text[9] = 's';
-            text[10] = 'e';
-            text[11] = 'c';
-            text[12] = '\0';
-            display.clear();
-            display.setCursor(0,0);
-            display.print("Time Remaining:");
-            display.setCursor(0,1);
-            inputIndex = 0;
-            display.print(text);
+            sec1 = int(seconds / 10);
+            sec2 = seconds % 10;
         }
 }
