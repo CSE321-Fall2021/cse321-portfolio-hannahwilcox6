@@ -42,7 +42,7 @@ int row, inputIndex, minutes, seconds, sec1, sec2 = 0;
 const char* s = "";
 Ticker t1;
 char* timeRemainingStr = (char*)malloc(strlen(s)+1);
-bool flagD, flagRun, flagInput, flagSet = false;
+bool flagD, flagRun, flagInput, flagSet, flagReached = false;
 EventQueue queue(32*EVENTS_EVENT_SIZE);
 CSE321_LCD display(16, 2, LCD_5x10DOTS, PB_9, PB_8);
 
@@ -63,9 +63,10 @@ int main() {
     // 0001 0010
     // Enable ports  E, B
     RCC->AHB2ENR |= 0x12;
-    //PE_8 to 01 for output mode
-    GPIOE->MODER&=~(0x20000);
-    GPIOE->MODER|=0x10000;
+    //PE 8, 9, 7 to 01 for output mode
+    // 0000 0000 0000 0101 0100 0000 0000 0000
+    GPIOE->MODER&=(0xFFF54FFF);
+    GPIOE->MODER|=0x54000;
 
     //Enable pins PE10,12,14,15 as outputs
     //0101 0001 0001 0000 0000 0000 0000 0000
@@ -89,7 +90,7 @@ int main() {
     display.setCursor(0,0);
     display.print("Time Remaining:");
     display.setCursor(0,1);
-    display.print("0 Min 0 Sec");
+    display.print("0 Min 00 Sec");
 
     t1.attach(&updateTime, 1s);
     
@@ -125,11 +126,24 @@ int main() {
         }
 
         if(flagD == true){
+            if(flagReached== true){
+                GPIOE->ODR &= ~0x200;
+                GPIOE->ODR &= ~0x80;
+                flagReached = false;
+            }
             display.clear();
             display.setCursor(0,0);
             display.print("Enter Time:");
             flagD = false;
             flagInput = true;
+        }
+        else if(flagReached == true){
+            display.clear();
+            display.setCursor(0,0);
+            display.print("Times Up!");
+            GPIOE->ODR |= 0x200;
+            GPIOE->ODR |= 0x80;
+            flagRun = false;
         }
         else if(flagRun == true and flagInput == false and flagSet == true){
             sec1 = (timeRemainingStr[2])-'0';
@@ -189,7 +203,7 @@ int main() {
 
 void isr_Col1(void) {
     GPIOE->ODR |= 0x100; //Turn on an LED
-    printf("test Col 1\n");
+    printf("Col 1\n");
     if (row==0){
         queue.call(printf,"found A\n");
         flagRun = true;
@@ -210,7 +224,7 @@ void isr_Col1(void) {
 
 void isr_Col2(void) {
     GPIOE->ODR |= 0x100; //Turn on an LED
-    printf("test Col 2\n");
+    printf("Col 2\n");
     char num = ' ';
     if (row==0){
         num = '3';
@@ -241,7 +255,7 @@ void isr_Col2(void) {
 
 void isr_Col3(void) { 
     GPIOE->ODR |= 0x100; //Turn on an LED
-    printf("test Col 3\n");
+    printf("Col 3\n");
     char num = ' ';
     if (row==0){
         num = '2';
@@ -272,7 +286,7 @@ void isr_Col3(void) {
 
 void isr_Col4(void) {
     GPIOE->ODR |= 0x100; //Turn on an LED
-    printf("test Col 4\n");
+    printf("Col 4\n");
     char num = ' ';
     if (row==0){
         num = '1';
@@ -307,6 +321,7 @@ void updateTime(void){
             if(seconds <= 0 and minutes <= 0){
                 seconds = 0;
                 minutes = 0;
+                flagReached = true;
             }
             printf("%d %d\n", minutes, seconds);
             if(seconds < 0 and minutes >= 1){
