@@ -136,6 +136,8 @@ int main() {
             display.print("Enter Time:");
             flagD = false;
             flagInput = true;
+            flagSet = false;
+            flagRun = false;
         }
         else if(flagReached == true){
             display.clear();
@@ -326,7 +328,7 @@ void updateTime(void){
             printf("%d %d\n", minutes, seconds);
             if(seconds < 0 and minutes >= 1){
                 minutes -= 1;
-                seconds = 60;
+                seconds = 59;
             }
             sec1 = int(seconds / 10);
             sec2 = seconds % 10;
