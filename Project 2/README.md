@@ -47,6 +47,7 @@ Each LED will need to be set up with a resistor and there will also need to be a
 Once all connections are properly made, connect the Nucleo to a machine with this code, clean build, and then run.
 From there one should be able to control the LCD display with inputs from the keypad by setting a time for the timer,
 starting the timer, and stopping the timer.
+
 --------------------
 CSE321_project2_hiwilcox_main.cpp:
 --------------------
