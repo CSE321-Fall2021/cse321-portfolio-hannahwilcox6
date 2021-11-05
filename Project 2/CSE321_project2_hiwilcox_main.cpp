@@ -27,7 +27,6 @@
 #include "mbed.h"
 #include "lcd1602.h"
 #include <cstdio>
-#include <string>
 
 //The following functions are made for detecting inputs from different columns
 //I structured them columns 1-4, with column 1 starting on the right side of the keypad
@@ -38,12 +37,33 @@ void isr_Col3(void);
 void isr_Col4(void);
 void updateTime(void);
 
+// These intergers keep track of multiple items throughout the code
+// row: which row is currently being powered on the keypad
+// inputIndex: where in the char * we are for inputting time
+// minutes: minutes remaining on the timer
+// seconds: sceonds remaining on the timer
+// sec1: first digit of remaining second
+// sec2: second digit of remaining second
 int row, inputIndex, minutes, seconds, sec1, sec2 = 0;
+
+Ticker t1; //Ticker schedules when the LCD display should update
+
+// The following sets up a char * for remaining time in the LCD display
 const char* s = "";
-Ticker t1;
 char* timeRemainingStr = (char*)malloc(strlen(s)+1);
+
+// These flags keep track of multiple items throughout the code:
+// flagD: If D has been pressed
+// flagRun: If the countdown should be counting down or not
+// flagInput: If the user is inputting a time
+// flagSet: If the code needs to update the display to show a time needs to be entered
+// flagReached: If the countdown has finished
 bool flagD, flagRun, flagInput, flagSet, flagReached = false;
+
+// Event Queue object to allow for print statements in the isr function
 EventQueue queue(32*EVENTS_EVENT_SIZE);
+
+// Setting up the LCD display
 CSE321_LCD display(16, 2, LCD_5x10DOTS, PB_9, PB_8);
 
 //Input Pins
@@ -86,19 +106,22 @@ int main() {
     Column3.fall(&isr_Col3);
     Column4.fall(&isr_Col4);
 
+    // Following code will turn on the LCD display with a default to being set with 0 minutes and
+    // 00 seconds remaining.
     display.begin();
     display.setCursor(0,0);
     display.print("Time Remaining:");
     display.setCursor(0,1);
     display.print("0 Min 00 Sec");
 
+    // This ticker will run every second to update the time remaining for the LCD display
     t1.attach(&updateTime, 1s);
     
-    //This loop continously updates the LCD display remaining time, and changes which row is being powered
+    //This loop continously updates the LCD display, and changes which row is being powered
     while (1) {
-        //Row 1 Powered
-        row = 0; //Rows go from range 0-3
+        row = 0;
         if(row == 0){
+            //Row 1 Powered
             GPIOE->ODR |= 0x400;
             thread_sleep_for(50);
             GPIOE->ODR &= 0xFFFFFBFF;
@@ -106,6 +129,7 @@ int main() {
         }
         row += 1;
         if(row == 1){
+            //Row 2 Powered
             GPIOE->ODR |= 0x1000;
             thread_sleep_for(50);
             GPIOE->ODR &= 0xFFFFEFFF;
@@ -113,6 +137,7 @@ int main() {
         }
         row += 1;
         if(row == 2){
+            //Row 3 Powered
             GPIOE->ODR |= 0x4000;
             thread_sleep_for(50);
             GPIOE->ODR &= 0xFFFFBFFF;
@@ -120,11 +145,15 @@ int main() {
         }
         row += 1;
         if(row == 3){
+            //Row 4 Powered
             GPIOE->ODR |= 0x8000;
             thread_sleep_for(50);
             GPIOE->ODR &= 0xFFFF7FFF;
         }
 
+        // This conditional runs if the user has pressed D
+        // Sets LCD display to prompt user to enter a time, sets the input flag to true
+        // Resets LEDS in case the time was previously reached, resets all other flags 
         if(flagD == true){
             if(flagReached== true){
                 GPIOE->ODR &= ~0x200;
@@ -139,15 +168,20 @@ int main() {
             flagSet = false;
             flagRun = false;
         }
+        // This conditional runs if the countdown has finished, turns on multiple LEDS and updates LCD display
+        // Sets flagRun to false, since we aren't running anymore
         else if(flagReached == true){
             display.clear();
             display.setCursor(0,0);
             display.print("Times Up!");
+            //Turn on 2 LEDS
             GPIOE->ODR |= 0x200;
             GPIOE->ODR |= 0x80;
             flagRun = false;
         }
+        // This conditional runs if this is the start of a newly input countdown
         else if(flagRun == true and flagInput == false and flagSet == true){
+            //Following sets up the seconds and minutes to be put on the display
             sec1 = (timeRemainingStr[2])-'0';
             sec2 = (timeRemainingStr[3])-'0';
             int min = (timeRemainingStr[0]);
@@ -155,6 +189,7 @@ int main() {
             seconds = ((sec1)*10) + (sec2);
             const char* c = " min  sec";
             char* text = (char*)malloc(strlen(c)+1);
+            //Set up the char* for the display
             text[0] = min;
             text[1] = ' ';
             text[2] = 'm';
@@ -168,17 +203,22 @@ int main() {
             text[10] = 'e';
             text[11] = 'c';
             text[12] = '\0';
+            //Run the display
             display.clear();
             display.setCursor(0,0);
             display.print("Time Remaining:");
             display.setCursor(0,1);
+            //sets flagSet to false since we're done initializing the LCD
             flagSet = false;
+            //reset input index incase another time is inputted
             inputIndex = 0;
             display.print(text);
         }
+        // This conditonal runs to update the display during a countdown
         else if(flagRun == true and flagInput == false and flagSet == false){
             const char* c = " min  sec";
             char* text = (char*)malloc(strlen(c)+1);
+            //fills in text for the LCD display
             text[0] = minutes + '0';
             text[1] = ' ';
             text[2] = 'm';
@@ -196,6 +236,7 @@ int main() {
             display.setCursor(0,0);
             display.print("Time Remaining:");
             display.setCursor(0,1);
+            //reset input index incase another time is inputted
             inputIndex = 0;
             display.print(text);
         }
@@ -203,15 +244,23 @@ int main() {
     return 0;
 }
 
+// The following ISR functions operate to tell us which button the user has pressed
+// On each press an LED lights up and turns back off
+// Depending on the button press we may have to change the behavior of the timer
+// The char num in the functions for columns 2-4 controls which number was pressed
+
+// ISR function for column 1 [A,B,C,D]
 void isr_Col1(void) {
     GPIOE->ODR |= 0x100; //Turn on an LED
     printf("Col 1\n");
     if (row==0){
         queue.call(printf,"found A\n");
+        //Run the timer
         flagRun = true;
     } 
     else if(row ==1){
         queue.call(printf,"found B\n");
+        //Stop the timer
         flagRun = false;
     }
     else if(row ==2){
@@ -219,11 +268,13 @@ void isr_Col1(void) {
     }
     else{
         queue.call(printf,"found D\n");
+        //Get user input
         flagD = true;
     }
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
 
+// ISR function for column 2 [3,6,9,#]
 void isr_Col2(void) {
     GPIOE->ODR |= 0x100; //Turn on an LED
     printf("Col 2\n");
@@ -240,8 +291,11 @@ void isr_Col2(void) {
     else{
         queue.call(printf,"found #\n");
     }
+    // If we're inputting a time, this properly updates the timeRemainingStr with the current num
+    // Has the LCD display update if every input for time has been entered (3 numbers)
     if(flagInput == true){
             timeRemainingStr[inputIndex] = num;
+            // The following adds the : for m:ss 
             if(inputIndex == 0){
                 timeRemainingStr[inputIndex + 1] = ':';
                 inputIndex += 1;
@@ -255,6 +309,7 @@ void isr_Col2(void) {
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
 
+// ISR function for column 3 [2,5,8,0]
 void isr_Col3(void) { 
     GPIOE->ODR |= 0x100; //Turn on an LED
     printf("Col 3\n");
@@ -271,8 +326,11 @@ void isr_Col3(void) {
     else{
         num = '0';
     } 
+    // If we're inputting a time, this properly updates the timeRemainingStr with the current num
+    // Has the LCD display update if every input for time has been entered (3 numbers)
     if(flagInput == true){
             timeRemainingStr[inputIndex] = num;
+            // The following adds the : for m:ss 
             if(inputIndex == 0){
                 timeRemainingStr[inputIndex + 1] = ':';
                 inputIndex += 1;
@@ -286,6 +344,8 @@ void isr_Col3(void) {
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
 
+
+// ISR function for column 4 [1,4,7,*]
 void isr_Col4(void) {
     GPIOE->ODR |= 0x100; //Turn on an LED
     printf("Col 4\n");
@@ -302,8 +362,11 @@ void isr_Col4(void) {
     else{
         queue.call(printf,"found *\n");
     }
+    // If we're inputting a time, this properly updates the timeRemainingStr with the current num
+    // Has the LCD display update if every input for time has been entered (3 numbers)
     if(flagInput == true){
             timeRemainingStr[inputIndex] = num;
+            // The following adds the : for m:ss 
             if(inputIndex == 0){
                 timeRemainingStr[inputIndex + 1] = ':';
                 inputIndex += 1;
@@ -317,19 +380,25 @@ void isr_Col4(void) {
     GPIOE->ODR&=~(0x100); //Turn off an LED
 }
 
+// This function is called by our ticker, and runs every seconds
+// Checks if the countdown needs to be updated and if so, properly updates it for
+// the LCD display to run in main()
 void updateTime(void){
     if(flagRun == true and flagInput == false and flagSet == false){
             seconds -= 1;
+            // If we're at the end of the countdown
             if(seconds <= 0 and minutes <= 0){
                 seconds = 0;
                 minutes = 0;
                 flagReached = true;
             }
-            printf("%d %d\n", minutes, seconds);
+            // If we need to update from going down a minute
+            // Keeps it from displaying negative seconds or the wrong minute
             if(seconds < 0 and minutes >= 1){
                 minutes -= 1;
                 seconds = 59;
             }
+            //Updates sec1 and sec2 for LCD display input
             sec1 = int(seconds / 10);
             sec2 = seconds % 10;
         }
