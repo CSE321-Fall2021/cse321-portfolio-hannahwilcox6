@@ -3,9 +3,11 @@
 About
 -------------------
 Project Description:
+
 An automatic trash dispenser, with a purpose of having a hands free way for users to dispose of their garbage. This falls under the autonomous devices design area, and it aids users by not requiring them to have to touch garbage lids or covers when disposing of trash, while also keeping the trash covered so the smell wouldn’t be an issue. 
  
 Contribitor List:
+
 Hannah Wilcox
 
 --------------------
