@@ -3,8 +3,8 @@
 About
 -------------------
 Project Description:
-Control the state of an LCD display to count down like an alarm clock from 9 minutes 59 seconds to 0.
-User can input a time to count down from by use of a 4x4 matrix keypad, and control the state of the LCD display via inputs of a keypad. 
+An automatic trash dispenser, with a purpose of having a hands free way for users to dispose of their garbage. This falls under the autonomous devices design area, and it aids users by not requiring them to have to touch garbage lids or covers when disposing of trash, while also keeping the trash covered so the smell wouldn’t be an issue. 
+ 
 Contribitor List:
 Hannah Wilcox
 
