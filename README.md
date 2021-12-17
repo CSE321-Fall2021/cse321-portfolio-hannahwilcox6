@@ -1,5 +1,4 @@
 # cse321-portfolio-hannahwilcox6
-cse321-portfolio-hannahwilcox6 created by GitHub Classroom
 -------------------
 About
 -------------------
