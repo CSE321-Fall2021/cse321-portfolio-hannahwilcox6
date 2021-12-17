@@ -22,5 +22,4 @@ Project 3
 -----
 This project was designed by myself within the contraints of using certain elements such as watchdog and various syncrhonization techniques.
 
-My project was modeled to be an automatic trash dispenser, with a purpose of having a hands free way for users to dispose of their garbage. This falls under the autonomous devices design area, and it aids users by not requiring them to have to touch garbage lids or covers when disposing of trash, while also keeping the trash covered so the smell wouldn’t be an issue.
-It uses an ultrasonic sensor to read input in from users, and on reading 10cm or less it moves a servo motor to "dump" a trash lid to empty trash into a trash can.
+The project works through input from an ultrasonic sensor, and output to LEDs and a micro servo motor. On each read of 10cm or less from the ultrasonic sensor, the servo motor will rotate to "dump" trash by rotating 90 degrees and returning back to its resting state. Different colored LEDs light up based on if the servo is moving or free to be activated to move.
